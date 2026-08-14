@@ -23,6 +23,7 @@ AnbeeApp/
   settings.gradle
   gradle.properties
   debug.keystore
+  deploy.sh
   HANDOFF.md
   .github/workflows/build.yml
   app/
@@ -53,6 +54,16 @@ AnbeeApp/
 - 笛（解散）ボタンを削除
 - アンビーは10匹固定。移動は**L字（2直線）のみ**
 - 10秒放置すると、すあな（スタート地点）へ ゆっくり戻り始める
+
+## デプロイ（deploy.sh）
+`bash ~/AnbeeApp/deploy.sh "コミットメッセージ"` の1コマンドで push とタグ発行まで完結する。
+
+- トークンは `git config --global github.token` から読む。チャットに貼らない
+- `git pull --rebase origin main` を必ず通す。CatalogApp が API 経由で `.github/workflows/release.yml` と `ci/appathy.keystore` を直接コミットするため、これが無いと push が rejected になる
+- **`ci/` ディレクトリと `.github/workflows/release.yml` は削除しない**（`.gitignore` での追跡解除も不可）。配布ビルドに必要
+- push 後、GitHub API で最新リリースのタグを取得し、末尾の数字を +1 した次タグを `git/refs` に POST する（リリースが無ければ `v1.0.0`）
+- タグが打たれると Actions がビルドして Release を作り、自作アプリストアに更新として現れる
+- リポジトリ自体の作成は行わない。未作成の場合は先に API で作っておくこと
 
 ## ゲーム仕様
 
