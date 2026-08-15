@@ -65,6 +65,12 @@ AnbeeApp/
 - タグが打たれると Actions がビルドして Release を作り、自作アプリストアに更新として現れる
 - リポジトリ自体の作成は行わない。未作成の場合は先に API で作っておくこと
 
+### Artifacts を使わない
+`.github/workflows/build.yml` は **`actions/upload-artifact` を持たない**。
+Actions の Artifacts 無料枠（0.5GB）が枯渇すると "Artifact storage quota has been hit" でビルド自体が落ちるため。
+APK は タグ → `release.yml` → Release の経路でのみ配布する。
+build.yml は push ごとのコンパイル通過チェック専用。**upload-artifact を再び足さないこと。**
+
 ## ゲーム仕様
 
 ### 迷路（v2.1で不均一グリッド化）
