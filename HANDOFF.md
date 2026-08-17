@@ -25,7 +25,6 @@ AnbeeApp/
   debug.keystore
   deploy.sh
   HANDOFF.md
-  .github/workflows/build.yml
   app/
     build.gradle
     src/main/AndroidManifest.xml
@@ -57,19 +56,23 @@ AnbeeApp/
 
 ## デプロイ（deploy.sh）
 `bash ~/AnbeeApp/deploy.sh "コミットメッセージ"` の1コマンドで push とタグ発行まで完結する。
+第2引数に `notag` を渡すと push のみで終了する。
 
 - トークンは `git config --global github.token` から読む。チャットに貼らない
 - `git pull --rebase origin main` を必ず通す。CatalogApp が API 経由で `.github/workflows/release.yml` と `ci/appathy.keystore` を直接コミットするため、これが無いと push が rejected になる
 - **`ci/` ディレクトリと `.github/workflows/release.yml` は削除しない**（`.gitignore` での追跡解除も不可）。配布ビルドに必要
-- push 後、GitHub API で最新リリースのタグを取得し、末尾の数字を +1 した次タグを `git/refs` に POST する（リリースが無ければ `v1.0.0`）
+- 次タグは `git fetch --tags --force` → `git tag --list 'v*' | sort -V | tail -1` の**実タグ一覧**から算出し、`git tag` → `git push origin タグ名` でローカル発行する
+  - GitHub API の最新リリース基準は禁止。リリース作成が失敗するとタグだけ残り、同じ番号を再計算して弾かれ、push は通っているのに Actions が走らない事故になる
+  - API の `git/ref/heads/main` 参照も禁止。push 直後は反映待ちで一つ前のコミットにタグが付く
+  - タグが1つも無いときは awk が空を返すので `v1.0.0` へフォールバックする（この分岐は消さないこと）
 - タグが打たれると Actions がビルドして Release を作り、自作アプリストアに更新として現れる
 - リポジトリ自体の作成は行わない。未作成の場合は先に API で作っておくこと
+- v2.1.2 まで同梱していた `.github/workflows/build.yml` を削除したため、deploy.sh に `rm -f .github/workflows/build.yml` を入れてある。`unzip -o` は端末側の旧ファイルを消さないので、この行が無いと復活してしまう
 
-### Artifacts を使わない
-`.github/workflows/build.yml` は **`actions/upload-artifact` を持たない**。
-Actions の Artifacts 無料枠（0.5GB）が枯渇すると "Artifact storage quota has been hit" でビルド自体が落ちるため。
+### CI は release.yml のみ
+**`build.yml` は今後いっさい同梱しない。**
+`actions/upload-artifact` を使うと Artifacts 無料枠（0.5GB）が枯渇し、"Artifact storage quota has been hit" で全ビルドが落ちる。
 APK は タグ → `release.yml` → Release の経路でのみ配布する。
-build.yml は push ごとのコンパイル通過チェック専用。**upload-artifact を再び足さないこと。**
 
 ## ゲーム仕様
 
