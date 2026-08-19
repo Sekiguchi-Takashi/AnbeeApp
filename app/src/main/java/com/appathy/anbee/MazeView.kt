@@ -18,7 +18,9 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
-class GameView(ctx: Context) : View(ctx) {
+class MazeView(ctx: Context) : View(ctx) {
+
+    var onExit: (() -> Unit)? = null
 
     private class Ant {
         var x = 0f
@@ -132,6 +134,7 @@ class GameView(ctx: Context) : View(ctx) {
     private var ssy = 0f
     private var br = 0f
     private val mmR = RectF()
+    private val menuR = RectF()
 
     init {
         isFocusable = true
@@ -186,6 +189,7 @@ class GameView(ctx: Context) : View(ctx) {
         ssy = ctrlTop + ctrlH - mg - br
 
         mmR.set(bx + br + w * 0.035f, ctrlTop + mg * 0.6f, w - pad, h - mg * 0.8f)
+        UiKit.menuRect(menuR, w, fh)
     }
 
     private fun clamp(v: Float, lo: Float, hi: Float): Float {
@@ -500,6 +504,13 @@ class GameView(ctx: Context) : View(ctx) {
                 return
             }
             if (mmR.contains(x, y)) tapMini(x, y)
+            return
+        }
+        if (menuR.contains(x, y)) {
+            fid = -1
+            did = -1
+            ddir = 0
+            onExit?.invoke()
             return
         }
         if (scene != PLAY || paused) return
@@ -902,6 +913,7 @@ class GameView(ctx: Context) : View(ctx) {
         }
 
         drawGoalArrow(c)
+        UiKit.drawMenuBtn(c, p, menuR)
     }
 
     private fun drawPaths(c: Canvas) {
@@ -958,108 +970,13 @@ class GameView(ctx: Context) : View(ctx) {
         val r = antR
         if (sx < -r * 6f || sx > w + r * 6f || sy < -r * 8f || sy > fh + r * 6f) return
 
-        val bob = sin(a.ph) * r * 0.10f
         val pale = !a.saved && fid >= 0 && !a.reach
-
-        p.style = Paint.Style.FILL
-        p.color = Color.argb(70, 0, 0, 0)
-        c.drawOval(sx - r * 0.72f, sy - r * 0.16f, sx + r * 0.72f, sy + r * 0.30f, p)
-
-        val body = if (pale) Color.rgb(126, 150, 190) else Color.rgb(56, 104, 196)
-        val dark = if (pale) Color.rgb(102, 126, 166) else Color.rgb(38, 76, 156)
-
-        p.style = Paint.Style.STROKE
-        p.strokeWidth = r * 0.20f
-        p.color = dark
-        c.drawLine(sx - r * 0.26f, sy - r * 0.55f + bob, sx - r * 0.30f, sy, p)
-        c.drawLine(sx + r * 0.26f, sy - r * 0.55f + bob, sx + r * 0.30f, sy, p)
-        p.style = Paint.Style.FILL
-        c.drawOval(sx - r * 0.46f, sy - r * 0.13f, sx - r * 0.12f, sy + r * 0.08f, p)
-        c.drawOval(sx + r * 0.12f, sy - r * 0.13f, sx + r * 0.46f, sy + r * 0.08f, p)
-
-        p.color = body
-        c.drawOval(sx - r * 0.44f, sy - r * 1.28f + bob, sx + r * 0.44f, sy - r * 0.44f + bob, p)
-
-        p.style = Paint.Style.STROKE
-        p.strokeWidth = r * 0.17f
-        p.color = body
-        c.drawLine(sx - r * 0.40f, sy - r * 0.98f + bob, sx - r * 0.14f, sy - r * 0.80f + bob, p)
-        c.drawLine(sx + r * 0.40f, sy - r * 0.98f + bob, sx + r * 0.14f, sy - r * 0.80f + bob, p)
-        p.style = Paint.Style.FILL
-
-        val hb = sy - r * 1.18f + bob
-        val ht = sy - r * 2.62f + bob
-        path.reset()
-        path.moveTo(sx, ht)
-        path.cubicTo(sx + r * 0.62f, ht + r * 0.42f, sx + r * 0.80f, hb - r * 0.42f, sx, hb)
-        path.cubicTo(sx - r * 0.80f, hb - r * 0.42f, sx - r * 0.62f, ht + r * 0.42f, sx, ht)
-        path.close()
-        p.color = body
-        c.drawPath(path, p)
-        p.color = Color.argb(60, 150, 90, 200)
-        c.drawCircle(sx + r * 0.26f, hb - r * 0.52f, r * 0.26f, p)
-
-        val ey = sy - r * 1.86f + bob
-        val ed = r * 0.06f * a.face
-        p.color = Color.rgb(252, 252, 252)
-        c.drawOval(sx - r * 0.40f, ey - r * 0.30f, sx - r * 0.02f, ey + r * 0.30f, p)
-        c.drawOval(sx + r * 0.02f, ey - r * 0.30f, sx + r * 0.40f, ey + r * 0.30f, p)
-        p.color = Color.rgb(20, 22, 28)
-        c.drawCircle(sx - r * 0.20f + ed, ey + r * 0.02f, r * 0.13f, p)
-        c.drawCircle(sx + r * 0.20f + ed, ey + r * 0.02f, r * 0.13f, p)
-        p.color = Color.WHITE
-        c.drawCircle(sx - r * 0.24f + ed, ey - r * 0.05f, r * 0.045f, p)
-        c.drawCircle(sx + r * 0.16f + ed, ey - r * 0.05f, r * 0.045f, p)
-
-        p.style = Paint.Style.STROKE
-        p.strokeWidth = r * 0.09f
-        p.color = Color.rgb(24, 30, 44)
-        rect.set(sx - r * 0.20f, ey + r * 0.30f, sx + r * 0.20f, ey + r * 0.74f)
-        if (pale) c.drawArc(rect, 200f, 140f, false, p) else c.drawArc(rect, 20f, 140f, false, p)
-        p.style = Paint.Style.FILL
-
-        p.style = Paint.Style.STROKE
-        p.strokeWidth = r * 0.13f
-        p.color = Color.rgb(92, 168, 72)
-        val fy2 = ht - r * 1.05f
-        c.drawLine(sx, ht, sx, fy2, p)
-        p.style = Paint.Style.FILL
-        p.color = Color.rgb(104, 182, 82)
-        path.reset()
-        path.moveTo(sx - r * 0.02f, ht - r * 0.10f)
-        path.quadTo(sx - r * 0.62f, ht - r * 0.46f, sx - r * 0.34f, ht + r * 0.12f)
-        path.quadTo(sx - r * 0.16f, ht - r * 0.02f, sx - r * 0.02f, ht - r * 0.10f)
-        path.close()
-        c.drawPath(path, p)
-        path.reset()
-        path.moveTo(sx + r * 0.02f, ht - r * 0.10f)
-        path.quadTo(sx + r * 0.62f, ht - r * 0.46f, sx + r * 0.34f, ht + r * 0.12f)
-        path.quadTo(sx + r * 0.16f, ht - r * 0.02f, sx + r * 0.02f, ht - r * 0.10f)
-        path.close()
-        c.drawPath(path, p)
-
-        val pr = r * 0.42f
-        p.color = if (a.saved) Color.rgb(255, 236, 120)
-        else if (pale) Color.rgb(206, 196, 150) else Color.rgb(250, 206, 44)
-        for (i in 0 until 5) {
-            val t = i / 5f * 6.2832f + a.tone * 1.2f
-            c.drawCircle(sx + cos(t) * pr * 0.72f, fy2 + sin(t) * pr * 0.72f, pr * 0.62f, p)
-        }
-        p.color = if (pale) Color.rgb(186, 176, 136) else Color.rgb(238, 160, 32)
-        c.drawCircle(sx, fy2, pr * 0.42f, p)
+        Chara.draw(c, p, path, rect, sx, sy, r, pale, a.saved, a.face, a.ph)
 
         if (a.mode == BACK) {
-            p.color = Color.argb(215, 255, 170, 120)
-            p.textAlign = Paint.Align.CENTER
-            p.textSize = r * 0.95f
-            c.drawText("＜", sx, ht - r * 1.55f, p)
-            p.textAlign = Paint.Align.LEFT
+            Chara.mark(c, p, sx, sy, r, "\uff1c", Color.argb(215, 255, 170, 120))
         } else if (!a.saved && a.idle > IDLE_LIMIT * 0.6f) {
-            p.color = Color.argb(195, 255, 230, 140)
-            p.textAlign = Paint.Align.CENTER
-            p.textSize = r * 0.85f
-            c.drawText("?", sx, ht - r * 1.55f, p)
-            p.textAlign = Paint.Align.LEFT
+            Chara.mark(c, p, sx, sy, r, "?", Color.argb(195, 255, 230, 140))
         }
     }
 
@@ -1120,46 +1037,9 @@ class GameView(ctx: Context) : View(ctx) {
     // ---------------- panel ----------------
 
     private fun drawPanel(c: Canvas) {
-        p.style = Paint.Style.FILL
-        p.color = Color.rgb(216, 208, 192)
-        c.drawRect(0f, fh, w, h, p)
-        p.color = Color.rgb(150, 40, 40)
-        c.drawRect(0f, fh, w, fh + panelH * 0.022f, p)
-        p.color = Color.rgb(46, 44, 46)
-        c.drawRect(0f, fh + panelH * 0.022f, w, fh + panelH * 0.036f, p)
-
+        UiKit.drawPanelBase(c, p, w, h, fh, panelH)
         drawStatus(c)
-
-        // 十字キー
-        val a1 = dr * 0.36f
-        p.color = Color.rgb(44, 42, 46)
-        rect.set(dcx - a1, dcy - dr, dcx + a1, dcy + dr)
-        c.drawRoundRect(rect, 14f, 14f, p)
-        rect.set(dcx - dr, dcy - a1, dcx + dr, dcy + a1)
-        c.drawRoundRect(rect, 14f, 14f, p)
-        p.color = Color.rgb(78, 76, 80)
-        c.drawCircle(dcx, dcy, a1 * 0.52f, p)
-        if (ddir != 0) {
-            p.color = Color.argb(180, 250, 226, 120)
-            when (ddir) {
-                1 -> c.drawCircle(dcx, dcy - dr * 0.62f, a1 * 0.5f, p)
-                2 -> c.drawCircle(dcx, dcy + dr * 0.62f, a1 * 0.5f, p)
-                3 -> c.drawCircle(dcx - dr * 0.62f, dcy, a1 * 0.5f, p)
-                4 -> c.drawCircle(dcx + dr * 0.62f, dcy, a1 * 0.5f, p)
-            }
-        }
-        p.color = Color.argb(160, 255, 255, 255)
-        for (i in 0 until 4) {
-            val t = i / 4f * 6.2832f
-            val px = dcx + cos(t) * dr * 0.72f
-            val py = dcy + sin(t) * dr * 0.72f
-            path.reset()
-            path.moveTo(px + cos(t) * a1 * 0.34f, py + sin(t) * a1 * 0.34f)
-            path.lineTo(px + cos(t + 2.4f) * a1 * 0.34f, py + sin(t + 2.4f) * a1 * 0.34f)
-            path.lineTo(px + cos(t - 2.4f) * a1 * 0.34f, py + sin(t - 2.4f) * a1 * 0.34f)
-            path.close()
-            c.drawPath(path, p)
-        }
+        UiKit.drawDpad(c, p, path, rect, dcx, dcy, dr, ddir)
 
         drawBtn(c, sbx, sby, Color.rgb(52, 126, 190), "さがす", 0.58f)
         val ssLabel = if (scene == PLAY && !paused) "ストップ" else "スタート"
@@ -1170,16 +1050,7 @@ class GameView(ctx: Context) : View(ctx) {
     }
 
     private fun drawBtn(c: Canvas, x: Float, y: Float, col: Int, label: String, ts: Float) {
-        p.style = Paint.Style.FILL
-        p.color = Color.argb(100, 0, 0, 0)
-        c.drawCircle(x, y + 6f, br, p)
-        p.color = col
-        c.drawCircle(x, y, br, p)
-        p.color = Color.WHITE
-        p.textAlign = Paint.Align.CENTER
-        p.textSize = br * ts
-        c.drawText(label, x, y + br * ts * 0.36f, p)
-        p.textAlign = Paint.Align.LEFT
+        UiKit.drawBtn(c, p, x, y, br, col, label)
     }
 
     private fun drawStatus(c: Canvas) {
@@ -1189,7 +1060,6 @@ class GameView(ctx: Context) : View(ctx) {
             if (a.saved) saved++
             else if (a.mode == BACK) back++
         }
-
         var left = when {
             fid >= 0 -> "よんでる " + comeN + "  とどかない " + farN
             scene == TITLE -> "スタート を おしてね"
@@ -1197,26 +1067,12 @@ class GameView(ctx: Context) : View(ctx) {
             else -> "ゆびで おして よぼう"
         }
         if (back > 0 && scene == PLAY) left = left + "  もどり " + back
-        val right = "ゴール " + saved + "/" + TOTAL
-
-        p.style = Paint.Style.FILL
-        var ts = min(panelH * 0.115f, w * 0.031f)
-        for (k in 0 until 8) {
-            p.textSize = ts
-            if (p.measureText(left) + p.measureText(right) + w * 0.12f <= w) break
-            ts *= 0.92f
-        }
-        p.textSize = ts
-
-        val ty = fh + panelH * 0.145f
-        p.color = if (back > 0 && scene == PLAY) Color.rgb(168, 74, 26) else Color.rgb(40, 40, 44)
-        p.textAlign = Paint.Align.LEFT
-        c.drawText(left, w * 0.035f, ty, p)
-
-        p.textAlign = Paint.Align.RIGHT
-        p.color = Color.rgb(28, 92, 48)
-        c.drawText(right, w * 0.965f, ty, p)
-        p.textAlign = Paint.Align.LEFT
+        val lc = if (back > 0 && scene == PLAY) Color.rgb(168, 74, 26) else Color.rgb(40, 40, 44)
+        UiKit.drawStatusRow(
+            c, p, w, fh, panelH,
+            left, lc,
+            "ゴール " + saved + "/" + TOTAL, Color.rgb(28, 92, 48)
+        )
     }
 
     private fun drawMini(c: Canvas) {
